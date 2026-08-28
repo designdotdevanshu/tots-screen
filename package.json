@@ -1,11 +1,45 @@
 {
-  "name": "screenshare",
+  "name": "tots-screen",
   "version": "2.0.0",
-  "description": "Multi-stream PWA WebRTC screen sharing hub with mobile gestures and instant QR access",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
+  "description": "TOTS Screen — Zero-config, ultra-low latency PWA WebRTC screen sharing hub with mobile gestures and instant QR access",
+  "main": "src/server.js",
+  "bin": {
+    "tots-screen": "./bin/screenshare.js",
+    "tots-cast": "./bin/screenshare.js",
+    "tots": "./bin/screenshare.js",
+    "screenshare": "./bin/screenshare.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/designdotdevanshu/tots-screen.git"
+  },
+  "scripts": {
+    "start": "node bin/screenshare.js",
+    "dev": "node bin/screenshare.js --open"
+  },
+  "keywords": [
+    "tots",
+    "tots-screen",
+    "screenshare",
+    "webrtc",
+    "screen-sharing",
+    "pwa",
+    "realtime",
+    "local-network",
+    "streaming",
+    "gestures",
+    "qr-code"
+  ],
+  "files": [
+    "bin",
+    "src",
+    "public",
+    "start.sh",
+    "start.bat",
+    "README.md"
+  ],
+  "license": "MIT",
+  "author": "The TOTS Project (https://github.com/designdotdevanshu)",
   "dependencies": {
     "qrcode": "^1.5.4",
     "ws": "^8.18.0"
