@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="TOTS Screen — Zero-config, ultra-low-latency screen sharing across your local network. Share your screen to any phone, tablet, or computer with a QR scan.">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)">
+<title>TOTS Screen — Share Any Screen to Any Device</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  /* Resolve the theme before first paint to avoid a flash of the wrong palette. */
+  (function () {
+    try {
+      var stored = localStorage.getItem('theme');
+      var theme = (stored === 'light' || stored === 'dark')
+        ? stored
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  })();
+</script>
+<style>
+  /* ===== Design tokens ===== */
+  :root {
+    color-scheme: light;
+    --bg: #fafafa;
+    --bg-deep: #f1f3f6;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --surface-hover: #f1f5f9;
+    --glass: rgba(255, 255, 255, 0.72);
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text: #0f172a;
+    --text-2: #475569;
+    --text-3: #94a3b8;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: rgba(37, 99, 235, 0.07);
+    --accent-ring: rgba(37, 99, 235, 0.16);
+    --on-accent: #ffffff;
+    --success: #059669;
+    --success-soft: rgba(5, 150, 105, 0.09);
+    --danger: #dc2626;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.03), 0 12px 28px -12px rgba(15, 23, 42, 0.14);
+    --shadow-lg: 0 32px 64px -24px rgba(15, 23, 42, 0.22);
+    --r-xs: 8px;
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 18px;
+    --r-xl: 24px;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --nav-h: 64px;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #090d16;
+    --bg-deep: #05080f;
+    --surface: #0f172a;
+    --surface-2: #131d31;
+    --surface-hover: #17223a;
+    --glass: rgba(9, 13, 22, 0.72);
+    --border: #1e293b;
+    --border-strong: #334155;
+    --text: #f8fafc;
+    --text-2: #94a3b8;
+    --text-3: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-soft: rgba(59, 130, 246, 0.12);
+    --accent-ring: rgba(59, 130, 246, 0.24);
+    --on-accent: #ffffff;
+    --success: #10b981;
+    --success-soft: rgba(16, 185, 129, 0.12);
+    --danger: #f87171;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+    --shadow-md: 0 12px 28px -14px rgba(0, 0, 0, 0.8);
+    --shadow-lg: 0 32px 64px -24px rgba(0, 0, 0, 0.9);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--nav-h) + 24px);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.35s var(--ease), color 0.35s var(--ease);
+  }
+
+  /* Quiet ambient wash — no neon, no motion. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 520px;
+    background:
+      radial-gradient(90% 120% at 50% -10%, var(--accent-soft) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  svg { display: block; }
+  ::selection { background: var(--accent-ring); }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ===== Navigation ===== */
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--nav-h);
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-inner {
+    max-width: 1160px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .nav-logo {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--text);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-logo svg { width: 17px; height: 17px; }
+
+  .nav-brand-text {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    list-style: none;
+    margin-left: 12px;
+  }
+
+  .nav-links a {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border-radius: var(--r-xs);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .nav-links a svg { width: 15px; height: 15px; }
+  .nav-links a:hover { color: var(--text); background: var(--surface-hover); }
+  .nav-links a.active { color: var(--text); font-weight: 600; }
+
+  .nav-links a.active::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  .nav-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+
+  .ping {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-3);
+    flex-shrink: 0;
+  }
+
+  .ping.online { background: var(--success); }
+
+  .ping.online::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid var(--success);
+    opacity: 0;
+    animation: ping 2.4s var(--ease) infinite;
+  }
+
+  @keyframes ping {
+    0% { transform: scale(0.6); opacity: 0.7; }
+    70%, 100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  .theme-toggle {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .theme-toggle:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-hover); }
+
+  .theme-toggle svg {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    transition: opacity 0.32s var(--ease), transform 0.45s var(--ease);
+  }
+
+  .theme-toggle .ic-sun { opacity: 0; transform: rotate(-70deg) scale(0.5); }
+  .theme-toggle .ic-moon { opacity: 1; transform: rotate(0) scale(1); }
+  [data-theme="dark"] .theme-toggle .ic-sun { opacity: 1; transform: rotate(0) scale(1); }
+  [data-theme="dark"] .theme-toggle .ic-moon { opacity: 0; transform: rotate(70deg) scale(0.5); }
+
+  @media (max-width: 900px) {
+    .nav-links { display: none; }
+  }
+  @media (max-width: 560px) {
+    .nav-brand-text { display: none; }
+    .status-pill { font-size: 10.5px; padding: 0 10px; }
+  }
+
+  /* ===== Layout ===== */
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    padding: 96px 0 72px;
+    max-width: 760px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 12px 0 10px;
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-2);
+  }
+
+  .eyebrow svg { width: 14px; height: 14px; color: var(--accent); }
+
+  .hero h1 {
+    font-size: clamp(38px, 6vw, 60px);
+    font-weight: 800;
+    line-height: 1.06;
+    letter-spacing: -0.042em;
+  }
+
+  .hero h1 .accent { color: var(--accent); }
+
+  .hero p {
+    margin-top: 22px;
+    font-size: 17.5px;
+    line-height: 1.62;
+    color: var(--text-2);
+    max-width: 620px;
+  }
+
+  .hero-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 36px;
+  }
+
+  /* ===== Buttons ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 20px;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.18s var(--ease), background-color 0.2s var(--ease),
+                border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), color 0.2s var(--ease);
+  }
+
+  .btn svg { width: 16px; height: 16px; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16), 0 6px 16px -8px var(--accent-ring);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.16), 0 12px 24px -10px var(--accent-ring);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn:active { transform: translateY(0); }
+
+  /* ===== Section headings ===== */
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 88px 0 24px;
+  }
+
+  .section-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .section-icon svg { width: 18px; height: 18px; }
+
+  .section-head h2 {
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    line-height: 1.25;
+  }
+
+  .section-head p {
+    font-size: 14px;
+    color: var(--text-2);
+    line-height: 1.45;
+  }
+
+  /* ===== Action cards ===== */
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .action-card {
+    display: flex;
+    flex-direction: column;
+    padding: 26px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.22s var(--ease), border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
+  }
+
+  a.action-card:hover,
+  .action-card.interactive:hover {
+    transform: translateY(-3px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    transition: color 0.22s var(--ease), border-color 0.22s var(--ease), background-color 0.22s var(--ease);
+  }
+
+  .card-icon svg { width: 20px; height: 20px; }
+
+  .action-card:hover .card-icon {
+    color: var(--accent);
+    border-color: var(--accent-ring);
+    background: var(--accent-soft);
+  }
+
+  .action-card h3 {
+    font-size: 16.5px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .action-card p {
+    font-size: 14px;
+    color: var(--text-2);
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  .card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 20px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .card-link svg {
+    width: 15px;
+    height: 15px;
+    transition: transform 0.22s var(--ease);
+  }
+
+  .action-card:hover .card-link svg { transform: translateX(3px); }
+  .action-card.interactive { cursor: pointer; }
+  .action-card.interactive:hover .card-link svg { transform: translateY(3px); }
+
+  /* ===== Pairing station ===== */
+  .station {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 40px;
+    align-items: center;
+    padding: 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+
+  .qr-plate {
+    width: 208px;
+    padding: 16px;
+    border-radius: var(--r-lg);
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.03);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #qrCodeContainer {
+    width: 176px;
+    height: 176px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+  }
+
+  #qrCodeContainer svg,
+  #qrCodeContainer img { width: 176px; height: 176px; display: block; }
+
+  .qr-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #64748b;
+  }
+
+  .qr-hint svg { width: 13px; height: 13px; }
+
+  .station-body h3 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .station-body > p {
+    margin-top: 8px;
+    font-size: 14.5px;
+    color: var(--text-2);
+    max-width: 480px;
+  }
+
+  .url-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+    max-width: 520px;
+  }
+
+  .url-field {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 42px;
+    padding: 0 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease), color 0.2s var(--ease);
+  }
+
+  .copy-btn:hover { border-color: var(--border-strong); background: var(--surface-hover); }
+  .copy-btn.copied { color: var(--success); border-color: var(--success-soft); background: var(--success-soft); }
+
+  .copy-icons {
+    position: relative;
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .copy-icons svg {
+    position: absolute;
+    inset: 0;
+    width: 15px;
+    height: 15px;
+    transition: opacity 0.24s var(--ease), transform 0.32s var(--ease);
+  }
+
+  .copy-icons .ic-check { opacity: 0; transform: scale(0.4); }
+  .copied .copy-icons .ic-check { opacity: 1; transform: scale(1); }
+  .copied .copy-icons .ic-copy { opacity: 0; transform: scale(0.4); }
+
+  .copy-label::after { content: attr(data-idle); }
+  .copied .copy-label::after { content: attr(data-done); }
+
+  .station-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-2);
+  }
+
+  @media (max-width: 860px) {
+    .station { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 28px; }
+    .station-body > p { margin-inline: auto; }
+    .station-meta { justify-content: center; }
+    .url-row { margin-inline: auto; width: 100%; }
+  }
+
+  /* ===== Install hub ===== */
+  .install {
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .segmented {
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .segmented::-webkit-scrollbar { display: none; }
+
+  .segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 118px;
+    height: 38px;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    background: transparent;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s var(--ease), background-color 0.2s var(--ease),
+                border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  }
+
+  .segment svg { width: 15px; height: 15px; }
+  .segment:hover { color: var(--text); }
+
+  .segment.active {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .panel { display: none; padding: 30px; }
+  .panel.active { display: block; animation: rise 0.3s var(--ease); }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .panel h3 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.022em;
+  }
+
+  .panel > .desc {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--text-2);
+    max-width: 640px;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    margin-top: 26px;
+  }
+
+  .step { display: flex; gap: 16px; }
+
+  .step-num {
+    width: 25px;
+    height: 25px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface-2);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-body { flex: 1; min-width: 0; }
+  .step-body p { font-size: 14px; color: var(--text-2); }
+  .step-body p + p { margin-top: 4px; }
+  .step-body strong { color: var(--text); font-weight: 600; }
+
+  .step-body code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .code-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px 12px 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    transition: border-color 0.2s var(--ease);
+  }
+
+  .code-block:hover { border-color: var(--border-strong); }
+
+  .code-block code {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--text);
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .code-block code::-webkit-scrollbar { display: none; }
+
+  .code-copy {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s var(--ease), background-color 0.2s var(--ease), border-color 0.2s var(--ease);
+  }
+
+  .code-copy:hover { color: var(--text); background: var(--surface); border-color: var(--border); }
+  .code-copy.copied { color: var(--success); }
+
+  /* The two icons stack and cross-fade in place. */
+  .code-copy svg {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    transition: opacity 0.24s var(--ease), transform 0.32s var(--ease);
+  }
+
+  .code-copy .ic-check { opacity: 0; transform: scale(0.4); }
+  .code-copy.copied .ic-check { opacity: 1; transform: scale(1); }
+  .code-copy.copied .ic-copy { opacity: 0; transform: scale(0.4); }
+
+  /* ===== Gesture guide ===== */
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .gesture-card {
+    padding: 26px 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+    transition: transform 0.22s var(--ease), border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
+  }
+
+  .gesture-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  .gesture-art {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 18px;
+    color: var(--text-2);
+    transition: color 0.22s var(--ease);
+  }
+
+  .gesture-card:hover .gesture-art { color: var(--accent); }
+
+  .gesture-card h4 {
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    margin-bottom: 7px;
+  }
+
+  .gesture-card p {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.55;
+  }
+
+  /* ===== Feature grid ===== */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .feature {
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.22s var(--ease), box-shadow 0.22s var(--ease), transform 0.22s var(--ease);
+  }
+
+  .feature:hover {
+    transform: translateY(-3px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  .feature > svg {
+    width: 22px;
+    height: 22px;
+    margin-bottom: 16px;
+    color: var(--accent);
+  }
+
+  .feature h4 {
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    margin-bottom: 7px;
+  }
+
+  .feature p {
+    font-size: 13.5px;
+    color: var(--text-2);
+    line-height: 1.58;
+  }
+
+  /* ===== FAQ ===== */
+  .faq {
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .faq-item + .faq-item { border-top: 1px solid var(--border); }
+
+  .faq-q {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 26px;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.014em;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease);
+  }
+
+  .faq-q:hover { background: var(--surface-2); }
+
+  .faq-chevron {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    color: var(--text-3);
+    transition: transform 0.3s var(--ease), color 0.2s var(--ease);
+  }
+
+  .faq-item.open .faq-chevron { transform: rotate(180deg); color: var(--accent); }
+
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s var(--ease);
+  }
+
+  .faq-a-inner {
+    padding: 0 26px 22px;
+    font-size: 14px;
+    line-height: 1.68;
+    color: var(--text-2);
+    max-width: 780px;
+  }
+
+  .faq-a-inner strong { color: var(--text); font-weight: 600; }
+
+  .faq-a-inner code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .footer-inner {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 28px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+
+  .footer-inner a {
+    color: var(--text-2);
+    text-decoration: none;
+    transition: color 0.2s var(--ease);
+  }
+
+  .footer-inner a:hover { color: var(--accent); }
+  .footer-links { display: flex; gap: 18px; }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 18px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    box-shadow: var(--shadow-lg);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+    opacity: 0;
+    transform: translate(-50%, 12px);
+    pointer-events: none;
+    transition: opacity 0.28s var(--ease), transform 0.28s var(--ease);
+  }
+
+  .toast svg { width: 15px; height: 15px; color: var(--success); flex-shrink: 0; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 1000px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    .action-grid, .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 640px) {
+    .page { padding: 0 18px 72px; }
+    .hero { padding: 64px 0 52px; }
+    .action-grid, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .section-head { margin: 64px 0 20px; }
+    .station { padding: 24px; }
+    .panel { padding: 22px; }
+    .url-row { flex-direction: column; }
+    .copy-btn { justify-content: center; }
+    .faq-q { padding: 18px 20px; }
+    .faq-a-inner { padding: 0 20px 20px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Navigation ===== -->
+<nav class="top-nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <span class="nav-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M9 21h6"/><path d="M12 17v4"/></svg>
+      </span>
+      <span class="nav-brand-text">TOTS Screen</span>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
+      </a></li>
+      <li><a href="/sender">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+        Sender Studio
+      </a></li>
+      <li><a href="/view">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
+        Viewer
+      </a></li>
+      <li><a href="#install">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Install
+      </a></li>
+    </ul>
+
+    <div class="nav-right">
+      <span class="status-pill">
+        <span class="ping" id="navDot"></span>
+        <span id="navStatusText">Offline</span>
+      </span>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch color theme" title="Switch color theme">
+        <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- ===== Hero ===== -->
+  <section class="hero">
+    <span class="eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
+      Local Peer-to-Peer · Zero-Config
+    </span>
+    <h1>Share any screen<br>to any device. <span class="accent">Instantly.</span></h1>
+    <p>Open the studio on your computer, scan the code with your phone or tablet. No accounts, no cloud relay, nothing to install for viewers — it runs entirely over your own Wi-Fi.</p>
+    <div class="hero-cta">
+      <a href="/sender" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+        Open Sender Studio
+      </a>
+      <a href="/view" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
+        Open Viewer
+      </a>
+    </div>
+  </section>
+
+  <!-- ===== Action cards ===== -->
+  <div class="action-grid">
+    <a href="/sender" class="action-card">
+      <span class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="m10 8 4 2.5-4 2.5z"/></svg>
+      </span>
+      <h3>Start broadcasting</h3>
+      <p>Open the Sender Studio on this computer to share a screen, a window, or a single browser tab in real time.</p>
+      <span class="card-link">Open Sender Studio
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </span>
+    </a>
+
+    <a href="/view" class="action-card">
+      <span class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/><path d="M9 6h6"/></svg>
+      </span>
+      <h3>Watch a stream</h3>
+      <p>Open the viewer on a phone, tablet, or any browser to follow active screen shares with full touch gesture control.</p>
+      <span class="card-link">Open Viewer
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </span>
+    </a>
+
+    <div class="action-card interactive" id="qrScrollCard" role="button" tabindex="0">
+      <span class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14h1M14 20h1M17.5 20.5h.01M20.5 17.5h.01M20.5 20.5h.01"/></svg>
+      </span>
+      <h3>Pair with a scan</h3>
+      <p>Point a phone camera at the pairing code below, or copy the viewer URL to any device on the same network.</p>
+      <span class="card-link">Jump to pairing code
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+      </span>
+    </div>
+  </div>
+
+  <!-- ===== Pairing station ===== -->
+  <div class="section-head" id="qr-station">
+    <span class="section-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+    </span>
+    <div>
+      <h2>Mobile pairing</h2>
+      <p>Scan once — the viewer opens straight to your live streams.</p>
+    </div>
+  </div>
+
+  <div class="station">
+    <div class="qr-plate">
+      <div id="qrCodeContainer">Loading pairing code…</div>
+      <span class="qr-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        Scan with your phone camera
+      </span>
+    </div>
+
+    <div class="station-body">
+      <h3>Connect your phone or tablet</h3>
+      <p>Make sure the device is on the <strong>same Wi-Fi network</strong> as this computer, then scan the code or open the URL below.</p>
+
+      <div class="url-row">
+        <div class="url-field" id="viewerUrl">Loading…</div>
+        <button class="copy-btn" id="copyUrlBtn" type="button">
+          <span class="copy-icons">
+            <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <span class="copy-label" data-idle="Copy" data-done="Copied"></span>
+        </button>
+      </div>
+
+      <div class="station-meta">
+        <span class="meta-chip">
+          <span class="ping" id="serverLiveDot"></span>
+          <span id="serverLiveText">Checking server…</span>
+        </span>
+        <span class="meta-chip">
+          <span class="ping online"></span>
+          <span id="activeStreamsText">0 active streams</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Install hub ===== -->
+  <div class="section-head" id="install">
+    <span class="section-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </span>
+    <div>
+      <h2>Install &amp; run</h2>
+      <p>Four ways to start the hub — pick whichever fits your setup.</p>
+    </div>
+  </div>
+
+  <div class="install">
+    <div class="segmented" id="installTabs" role="tablist">
+      <button class="segment active" type="button" data-panel="panel-oneclick">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9l5 12 1.8-5.2L21 14z"/><path d="M7.2 2.2 8 5M5 7.2 2.2 8M4.9 4.9l2 2M9.8 4.2 9 7"/></svg>
+        1-Click
+      </button>
+      <button class="segment" type="button" data-panel="panel-npx">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="m7 9 3 3-3 3M13 15h4"/></svg>
+        NPX
+      </button>
+      <button class="segment" type="button" data-panel="panel-docker">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
+        Docker
+      </button>
+      <button class="segment" type="button" data-panel="panel-dev">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Developer
+      </button>
+    </div>
+
+    <!-- 1-Click -->
+    <div class="panel active" id="panel-oneclick">
+      <h3>One-click desktop launchers</h3>
+      <p class="desc">No terminal required. Download the project and double-click a single file — the launcher installs dependencies and opens your browser.</p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div class="step-body"><p>Download or clone this project to your computer.</p></div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <div class="step-body">
+            <p><strong>Windows:</strong> double-click <code>start.bat</code></p>
+            <p><strong>macOS / Linux:</strong> double-click <code>start.sh</code>, or run it from a terminal:</p>
+            <div class="code-block">
+              <code>./start.sh</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <div class="step-body"><p>Your browser opens on the Sender Studio. Scan the pairing code with your phone and you are live.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NPX -->
+    <div class="panel" id="panel-npx">
+      <h3>Instant run with npx</h3>
+      <p class="desc">Nothing to clone or download. If Node.js is installed, run directly from GitHub or NPM.</p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div class="step-body">
+            <p>Run directly from GitHub (zero install needed):</p>
+            <div class="code-block">
+              <code>npx github:designdotdevanshu/tots-screen --open</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <div class="step-body">
+            <p>Or run via NPM package name:</p>
+            <div class="code-block">
+              <code>npx tots-screen --open</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Docker -->
+    <div class="panel" id="panel-docker">
+      <h3>Docker &amp; Docker Compose</h3>
+      <p class="desc">Ideal for a home server, a NAS, or any containerised environment you keep running.</p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div class="step-body">
+            <p><strong>Docker Compose</strong> — recommended:</p>
+            <div class="code-block">
+              <code>docker compose up -d</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <div class="step-body">
+            <p><strong>Standalone Docker:</strong></p>
+            <div class="code-block">
+              <code>docker build -t tots-screen . &amp;&amp; docker run -p 8080:8080 tots-screen</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Developer -->
+    <div class="panel" id="panel-dev">
+      <h3>Developer setup (clone & run)</h3>
+      <p class="desc">For contributors who want to modify or extend TOTS Screen.</p>
+      <div class="steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <div class="step-body">
+            <p>Clone the repository:</p>
+            <div class="code-block">
+              <code>git clone https://github.com/designdotdevanshu/tots-screen.git &amp;&amp; cd tots-screen</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <div class="step-body">
+            <p>Install dependencies:</p>
+            <div class="code-block">
+              <code>npm install</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <div class="step-body">
+            <p>Start the server:</p>
+            <div class="code-block">
+              <code>npm start</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <div class="step-body">
+            <p>Or start with the browser opening automatically:</p>
+            <div class="code-block">
+              <code>npm run dev</code>
+              <button class="code-copy" type="button" onclick="copyCode(this)" aria-label="Copy command">
+                <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Gesture guide ===== -->
+  <div class="section-head">
+    <span class="section-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg>
+    </span>
+    <div>
+      <h2>Touch gestures</h2>
+      <p>The viewer is built for phones and tablets first.</p>
+    </div>
+  </div>
+
+  <div class="grid-4">
+    <div class="gesture-card">
+      <div class="gesture-art">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="24" r="15"/>
+          <path d="M17.5 30.5 22.5 25.5"/><path d="M22.5 25.5h-4M22.5 25.5v4"/>
+          <path d="M30.5 17.5 25.5 22.5"/><path d="M25.5 22.5h4M25.5 22.5v-4"/>
+        </svg>
+      </div>
+      <h4>Pinch to zoom</h4>
+      <p>Two fingers zoom into any region of the shared screen, up to 500%.</p>
+    </div>
+
+    <div class="gesture-card">
+      <div class="gesture-art">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="24" r="4.5"/>
+          <path d="M24 9v9M24 30v9M9 24h9M30 24h9"/>
+          <path d="M20.5 12.5 24 9l3.5 3.5M20.5 35.5 24 39l3.5-3.5M12.5 20.5 9 24l3.5 3.5M35.5 20.5 39 24l-3.5 3.5"/>
+        </svg>
+      </div>
+      <h4>Drag to pan</h4>
+      <p>While zoomed in, one finger moves you around the shared display.</p>
+    </div>
+
+    <div class="gesture-card">
+      <div class="gesture-art">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="24" r="4.5"/>
+          <path d="M15.5 15.5a12 12 0 0 0 0 17M32.5 15.5a12 12 0 0 1 0 17"/>
+          <path d="M11 11a17.5 17.5 0 0 0 0 26M37 11a17.5 17.5 0 0 1 0 26" opacity=".55"/>
+        </svg>
+      </div>
+      <h4>Double-tap to reset</h4>
+      <p>Two quick taps snap the zoom level back to fit-to-screen.</p>
+    </div>
+
+    <div class="gesture-card">
+      <div class="gesture-art">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="7" y="10" width="34" height="28" rx="4"/>
+          <path d="M15 21v-6h6M33 21v-6h-6M15 27v6h6M33 27v6h-6"/>
+        </svg>
+      </div>
+      <h4>Fullscreen</h4>
+      <p>One tap hides the browser chrome for the largest possible picture.</p>
+    </div>
+  </div>
+
+  <!-- ===== Features ===== -->
+  <div class="section-head">
+    <span class="section-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+    </span>
+    <div>
+      <h2>What you get</h2>
+      <p>Everything runs on your machine and your network. Nothing else.</p>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
+      <h4>Ultra-low latency</h4>
+      <p>Direct WebRTC peer-to-peer streaming over your LAN, with near-zero delay.</p>
+    </div>
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></svg>
+      <h4>Multi-stream</h4>
+      <p>Broadcast several screens, windows, or tabs at once and let viewers pick a channel.</p>
+    </div>
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+      <h4>Private by design</h4>
+      <p>Media never leaves your network. No cloud, no accounts, no telemetry.</p>
+    </div>
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <h4>Many viewers</h4>
+      <p>Phones, tablets, and laptops watch together — each with independent zoom and pan.</p>
+    </div>
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+      <h4>Audio included</h4>
+      <p>Send system or tab audio alongside the picture for complete media streaming.</p>
+    </div>
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      <h4>Zero configuration</h4>
+      <p>No sign-up, no port forwarding, no certificates. Start the server and scan.</p>
+    </div>
+  </div>
+
+  <!-- ===== FAQ ===== -->
+  <div class="section-head" id="faq">
+    <span class="section-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+    </span>
+    <div>
+      <h2>Common questions</h2>
+      <p>Connection issues, audio, permissions, and installing the viewer.</p>
+    </div>
+  </div>
+
+  <div class="faq" id="faqList">
+    <div class="faq-item">
+      <button class="faq-q" type="button" onclick="toggleFaq(this)">
+        My phone cannot connect — “Connection timed out”
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><div class="faq-a-inner">
+        Both devices must be on the <strong>same Wi-Fi network</strong> — not mobile data. Guest and hotel networks usually isolate clients from each other, so use a personal hotspot or your home network instead. Also confirm your firewall allows incoming connections on port 8080.
+      </div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" type="button" onclick="toggleFaq(this)">
+        How do I share system audio?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><div class="faq-a-inner">
+        In the browser's share prompt, pick a <strong>browser tab</strong> or <strong>entire screen</strong> and tick <strong>“Share audio”</strong> at the bottom of the dialog. Window-level audio capture depends on your operating system and browser.
+      </div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" type="button" onclick="toggleFaq(this)">
+        macOS: screen recording permission error
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><div class="faq-a-inner">
+        Open <strong>System Settings → Privacy &amp; Security → Screen Recording</strong> and enable your browser. A browser restart is usually required after granting the permission.
+      </div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" type="button" onclick="toggleFaq(this)">
+        Can I use this over the internet?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><div class="faq-a-inner">
+        TOTS Screen is built for a shared local network. For remote access you would forward the server port on your router or use a tunnel such as <code>ngrok</code>, <code>cloudflared</code>, or <code>tailscale</code>. Note that WebRTC often needs a TURN server to traverse NAT on remote connections.
+      </div></div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" type="button" onclick="toggleFaq(this)">
+        How do I install the viewer as an app?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <strong>iOS (Safari):</strong> tap Share → “Add to Home Screen”.<br>
+        <strong>Android (Chrome):</strong> tap the three-dot menu → “Install app”.<br>
+        The viewer then launches as a standalone app icon on your device.
+      </div></div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>TOTS Screen · Part of The TOTS Project · MIT Licensed</span>
+    <span class="footer-links">
+      <a href="/sender">Sender Studio</a>
+      <a href="/view">Viewer</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/designdotdevanshu/tots-screen" target="_blank" rel="noopener">GitHub</a>
+    </span>
+  </div>
+</footer>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastText">Copied</span>
+</div>
+
+<script>
+(function () {
+  const root = document.documentElement;
+
+  /* ===== Theme engine ===== */
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function storedTheme() {
+    try {
+      const v = localStorage.getItem('theme');
+      return (v === 'light' || v === 'dark') ? v : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+  }
+
+  applyTheme(storedTheme() || (media.matches ? 'dark' : 'light'));
+
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+
+  // Follow the OS while the visitor has not picked a theme explicitly.
+  const onSchemeChange = (e) => {
+    if (!storedTheme()) applyTheme(e.matches ? 'dark' : 'light');
+  };
+  if (media.addEventListener) media.addEventListener('change', onSchemeChange);
+  else if (media.addListener) media.addListener(onSchemeChange);
+
+  /* ===== Server info, QR, live stream count ===== */
+  let ws = null;
+  let activeStreamCount = 0;
+
+  async function init() {
+    try {
+      const res = await fetch('/api/info');
+      const serverInfo = await res.json();
+
+      document.getElementById('viewerUrl').textContent = serverInfo.defaultViewerUrl;
+      document.getElementById('navDot').classList.add('online');
+      document.getElementById('navStatusText').textContent = serverInfo.defaultIp + ':' + serverInfo.port;
+      document.getElementById('serverLiveDot').classList.add('online');
+      document.getElementById('serverLiveText').textContent = 'Server online';
+
+      loadQr(serverInfo.defaultViewerUrl);
+      connectWs();
+    } catch (e) {
+      document.getElementById('navStatusText').textContent = 'Offline';
+      document.getElementById('serverLiveText').textContent = 'Server unreachable';
+      document.getElementById('qrCodeContainer').textContent = 'Server unreachable';
+      document.getElementById('viewerUrl').textContent = 'Server not running';
+    }
+  }
+
+  async function loadQr(url) {
+    try {
+      const res = await fetch('/api/qr?text=' + encodeURIComponent(url));
+      const svg = await res.text();
+      const container = document.getElementById('qrCodeContainer');
+      container.innerHTML = svg;
+      const svgEl = container.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.width = '176px';
+        svgEl.style.height = '176px';
+        svgEl.style.display = 'block';
+      }
+    } catch (e) {
+      document.getElementById('qrCodeContainer').textContent = 'Pairing code unavailable';
+    }
+  }
+
+  function connectWs() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(protocol + '//' + location.host + '/ws');
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'welcome' || msg.type === 'stream-list') {
+          activeStreamCount = msg.streams ? msg.streams.length : 0;
+          updateStreamCount();
+        }
+      } catch (e) {}
+    };
+
+    ws.onclose = () => setTimeout(connectWs, 3000);
+  }
+
+  function updateStreamCount() {
+    document.getElementById('activeStreamsText').textContent =
+      activeStreamCount + ' active stream' + (activeStreamCount === 1 ? '' : 's');
+  }
+
+  /* ===== Copy helpers ===== */
+  function flash(el) {
+    el.classList.add('copied');
+    clearTimeout(el._copyTimer);
+    el._copyTimer = setTimeout(() => el.classList.remove('copied'), 1800);
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastText').textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return Promise.reject(new Error('Clipboard unavailable'));
+  }
+
+  document.getElementById('copyUrlBtn').addEventListener('click', function () {
+    const url = document.getElementById('viewerUrl').textContent;
+    if (!url || url === 'Loading…' || url === 'Server not running') return;
+    copyText(url).then(() => {
+      flash(this);
+      showToast('Viewer URL copied');
+    }).catch(() => showToast('Copy failed — select the URL manually'));
+  });
+
+  window.copyCode = function (btn) {
+    const code = btn.closest('.code-block').querySelector('code').textContent;
+    copyText(code).then(() => {
+      flash(btn);
+      showToast('Copied: ' + code);
+    }).catch(() => showToast('Copy failed — select the command manually'));
+  };
+
+  /* ===== Install segmented control ===== */
+  document.getElementById('installTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.segment');
+    if (!tab) return;
+    document.querySelectorAll('.segment').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.getAttribute('data-panel')).classList.add('active');
+  });
+
+  /* ===== FAQ accordion ===== */
+  window.toggleFaq = function (btn) {
+    const item = btn.closest('.faq-item');
+    const answer = item.querySelector('.faq-a');
+    const isOpen = item.classList.contains('open');
+
+    document.querySelectorAll('.faq-item.open').forEach(el => {
+      el.classList.remove('open');
+      el.querySelector('.faq-a').style.maxHeight = '0';
+    });
+
+    if (!isOpen) {
+      item.classList.add('open');
+      answer.style.maxHeight = answer.scrollHeight + 'px';
+    }
+  };
+
+  window.addEventListener('resize', () => {
+    const open = document.querySelector('.faq-item.open .faq-a');
+    if (open) open.style.maxHeight = open.scrollHeight + 'px';
+  });
+
+  /* ===== Pairing card jump ===== */
+  const qrCard = document.getElementById('qrScrollCard');
+  const jumpToStation = () => {
+    document.getElementById('qr-station').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  qrCard.addEventListener('click', jumpToStation);
+  qrCard.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jumpToStation(); }
+  });
+
+  init();
+
+  // Register PWA Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
