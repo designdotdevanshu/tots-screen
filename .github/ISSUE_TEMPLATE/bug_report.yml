@@ -1,0 +1,60 @@
+name: "Bug Report"
+description: "File a bug report to help us improve TOTS Screen"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue. Please provide as much detail as possible so we can reproduce and fix it quickly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "When opening the mobile viewer on iOS Safari, the video stream..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Start server with `bun run start`
+        2. Open http://localhost:8080/sender and start sharing entire screen
+        3. Scan QR code from an iPad on iOS 17
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear description of what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment & System Details
+      description: Please provide your operating system, browser, runtime, and network info.
+      placeholder: |
+        - Host OS: Linux Ubuntu 24.04 / macOS 14 / Windows 11
+        - Host Runtime: Bun v1.3.12 / Node.js v20.x
+        - Sender Browser: Google Chrome 128
+        - Viewer Device & Browser: iPad Pro (iPadOS 17.5, Safari)
+        - Connection: Same Wi-Fi 5GHz
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Console Logs
+      description: Terminal logs or browser developer console errors (if available).
+      render: shell

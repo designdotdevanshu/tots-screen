@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: mailto:design.devanshu@gmail.com
+    about: Report security vulnerabilities directly via email per our Security Policy.
+  - name: The TOTS Project Discussions
+    url: https://github.com/designdotdevanshu/tots-screen/discussions
+    about: Ask questions, share ideas, and connect with other users.
