@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Viewer — TOTS Screen</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  /* Resolve the theme before first paint to avoid a flash of the wrong palette. */
+  (function () {
+    try {
+      var stored = localStorage.getItem('theme');
+      var theme = (stored === 'light' || stored === 'dark')
+        ? stored
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
+<style>
+  /* ===== Design tokens =====
+     The stage stays black in both themes — only the floating chrome changes. */
+  :root {
+    color-scheme: light;
+    --stage: #000000;
+    --glass: rgba(255, 255, 255, 0.86);
+    --glass-hover: rgba(15, 23, 42, 0.06);
+    --glass-active: rgba(15, 23, 42, 0.1);
+    --border: rgba(15, 23, 42, 0.1);
+    --text: #0f172a;
+    --text-2: #475569;
+    --text-3: #94a3b8;
+    --accent: #2563eb;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --glass: rgba(15, 23, 42, 0.72);
+    --glass-hover: rgba(255, 255, 255, 0.09);
+    --glass-active: rgba(255, 255, 255, 0.14);
+    --border: rgba(255, 255, 255, 0.1);
+    --text: #f8fafc;
+    --text-2: #94a3b8;
+    --text-3: #64748b;
+    --accent: #3b82f6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #f87171;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--stage);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    touch-action: none;
+  }
+
+  svg { display: block; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ===== Stage ===== */
+  #viewport {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--stage);
+  }
+
+  #videoContainer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transform-origin: 0 0;
+    will-change: transform;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+  }
+
+  /* ===== Floating chrome ===== */
+  .overlay-bar {
+    position: fixed;
+    z-index: 50;
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    transition: opacity 0.32s var(--ease), transform 0.32s var(--ease),
+                background-color 0.32s var(--ease), border-color 0.32s var(--ease);
+    pointer-events: auto;
+  }
+
+  .ui-hidden .overlay-bar { opacity: 0; pointer-events: none; }
+
+  /* Header */
+  .header-bar {
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    border-radius: 16px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .ui-hidden .header-bar { transform: translateY(-16px); }
+
+  .header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .chip svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .chip:hover { color: var(--text); background: var(--glass-hover); }
+  .chip:active { background: var(--glass-active); }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: var(--glass-hover);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+
+  .status-dot {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--warning);
+    flex-shrink: 0;
+  }
+
+  .status-dot.connected { background: var(--success); }
+
+  .status-dot.connected::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid var(--success);
+    opacity: 0;
+    animation: ping 2.4s var(--ease) infinite;
+  }
+
+  .status-dot.error { background: var(--danger); }
+
+  @keyframes ping {
+    0% { transform: scale(0.6); opacity: 0.7; }
+    70%, 100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  /* Channel dropdown */
+  .channel-picker {
+    height: 30px;
+    max-width: 190px;
+    padding: 0 30px 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background-color: var(--glass-hover);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    text-overflow: ellipsis;
+    outline: none;
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease);
+  }
+
+  .channel-picker:hover { background-color: var(--glass-active); }
+  .channel-picker option { color: initial; }
+
+  /* Theme switch */
+  .theme-toggle {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--glass-hover);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .theme-toggle:hover { color: var(--text); background: var(--glass-active); }
+
+  .theme-toggle svg {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    transition: opacity 0.32s var(--ease), transform 0.45s var(--ease);
+  }
+
+  .theme-toggle .ic-sun { opacity: 0; transform: rotate(-70deg) scale(0.5); }
+  .theme-toggle .ic-moon { opacity: 1; transform: rotate(0) scale(1); }
+  [data-theme="dark"] .theme-toggle .ic-sun { opacity: 1; transform: rotate(0) scale(1); }
+  [data-theme="dark"] .theme-toggle .ic-moon { opacity: 0; transform: rotate(70deg) scale(0.5); }
+
+  /* Bottom toolbar */
+  .toolbar {
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .ui-hidden .toolbar { transform: translateX(-50%) translateY(24px); }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s var(--ease), background-color 0.2s var(--ease), transform 0.16s var(--ease);
+  }
+
+  .icon-btn:hover { color: var(--text); background: var(--glass-hover); }
+  .icon-btn:active { background: var(--glass-active); transform: scale(0.92); }
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  .icon-btn .ic-collapse { display: none; }
+  body.is-fullscreen .icon-btn .ic-expand { display: none; }
+  body.is-fullscreen .icon-btn .ic-collapse { display: block; }
+
+  .zoom-indicator {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-2);
+    min-width: 46px;
+    text-align: center;
+    padding: 0 2px;
+  }
+
+  .divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 2px;
+    background: var(--border);
+  }
+
+  /* ===== Transient hint ===== */
+  .hint-pill {
+    position: fixed;
+    left: 50%;
+    bottom: calc(max(16px, env(safe-area-inset-bottom)) + 62px);
+    z-index: 55;
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    box-shadow: var(--shadow);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translate(-50%, 8px);
+    pointer-events: none;
+    transition: opacity 0.24s var(--ease), transform 0.24s var(--ease);
+  }
+
+  .hint-pill.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ===== Unmute prompt ===== */
+  .unmute-pill {
+    position: fixed;
+    top: calc(max(12px, env(safe-area-inset-top)) + 58px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+    cursor: pointer;
+  }
+
+  .unmute-pill svg { width: 15px; height: 15px; }
+
+  /* ===== Center state ===== */
+  .center-state {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 24px;
+    text-align: center;
+    color: rgba(148, 163, 184, 0.9);
+    pointer-events: none;
+  }
+
+  .center-state.hidden { display: none; }
+
+  .spinner {
+    width: 38px;
+    height: 38px;
+    border: 2.5px solid rgba(255, 255, 255, 0.12);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .center-state h3 {
+    font-size: 16.5px;
+    font-weight: 700;
+    letter-spacing: -0.024em;
+    color: #f8fafc;
+  }
+
+  .center-state p {
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 560px) {
+    .chip-label { display: none; }
+    .chip { padding: 0 9px; }
+    .status-badge { padding: 0 9px; font-size: 10px; }
+    .channel-picker { max-width: 130px; font-size: 12px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .spinner { animation-duration: 0.9s !important; animation-iteration-count: infinite !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="viewport">
+  <div id="videoContainer">
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+
+  <div class="center-state" id="centerState">
+    <div class="spinner"></div>
+    <h3 id="centerTitle">Connecting to relay…</h3>
+    <p id="centerSubtitle">Looking for active screen shares</p>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="overlay-bar header-bar">
+  <div class="header-left">
+    <a href="/" class="chip" title="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="chip-label">Home</span>
+    </a>
+    <a href="/sender" class="chip" title="Sender Studio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span class="chip-label">Sender</span>
+    </a>
+    <span class="status-badge">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Connecting…</span>
+    </span>
+  </div>
+
+  <div class="header-right">
+    <select class="channel-picker" id="channelSelect" aria-label="Select stream channel">
+      <option value="" disabled selected>Select stream</option>
+    </select>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch color theme" title="Switch color theme">
+      <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Tap to unmute -->
+<button class="unmute-pill" id="unmutePill" type="button">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+  <span>Tap to unmute</span>
+</button>
+
+<!-- Transient hint -->
+<div class="hint-pill" id="hintPill"></div>
+
+<!-- Bottom toolbar -->
+<div class="overlay-bar toolbar">
+  <button class="icon-btn" id="resetZoomBtn" type="button" title="Reset zoom" aria-label="Reset zoom">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8 11h6"/></svg>
+  </button>
+
+  <span class="zoom-indicator" id="zoomText">1.0x</span>
+
+  <span class="divider"></span>
+
+  <button class="icon-btn" id="fitModeBtn" type="button" title="Cycle fit mode" aria-label="Cycle fit mode">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="M7 9h10v6H7z"/></svg>
+  </button>
+
+  <button class="icon-btn" id="fullscreenBtn" type="button" title="Toggle fullscreen" aria-label="Toggle fullscreen">
+    <svg class="ic-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    <svg class="ic-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3M16 3v3a2 2 0 0 0 2 2h3M16 21v-3a2 2 0 0 1 2-2h3M8 21v-3a2 2 0 0 0-2-2H3"/></svg>
+  </button>
+</div>
+
+<script>
+/* ===== Theme engine ===== */
+(function () {
+  const root = document.documentElement;
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function storedTheme() {
+    try {
+      const v = localStorage.getItem('theme');
+      return (v === 'light' || v === 'dark') ? v : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  root.setAttribute('data-theme', storedTheme() || (media.matches ? 'dark' : 'light'));
+
+  document.getElementById('themeToggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (err) {}
+  });
+
+  const onSchemeChange = (e) => {
+    if (!storedTheme()) root.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+  };
+  if (media.addEventListener) media.addEventListener('change', onSchemeChange);
+  else if (media.addListener) media.addListener(onSchemeChange);
+})();
+
+// State
+let ws = null;
+let clientId = null;
+let currentChannelId = null;
+let currentSenderId = null;
+let pc = null;
+let pendingCandidates = [];
+let remoteSet = false;
+let wakeLock = null;
+
+// Parse channel from URL query string or localStorage
+const urlParams = new URLSearchParams(location.search);
+let targetChannel = urlParams.get('channel') || localStorage.getItem('last_channel') || '1';
+
+const video = document.getElementById('remoteVideo');
+const videoContainer = document.getElementById('videoContainer');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const centerState = document.getElementById('centerState');
+const centerTitle = document.getElementById('centerTitle');
+const centerSubtitle = document.getElementById('centerSubtitle');
+const channelSelect = document.getElementById('channelSelect');
+const unmutePill = document.getElementById('unmutePill');
+const zoomText = document.getElementById('zoomText');
+const hintPill = document.getElementById('hintPill');
+
+// Transient hint for toolbar actions
+let hintTimer = null;
+function showHint(text) {
+  hintPill.textContent = text;
+  hintPill.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hintPill.classList.remove('show'), 1400);
+}
+
+// UI Auto-Hide
+let uiHideTimer = null;
+function resetUiTimeout() {
+  document.body.classList.remove('ui-hidden');
+  clearTimeout(uiHideTimer);
+  uiHideTimer = setTimeout(() => {
+    document.body.classList.add('ui-hidden');
+  }, 3500);
+}
+
+window.addEventListener('pointerdown', resetUiTimeout);
+window.addEventListener('pointermove', resetUiTimeout);
+resetUiTimeout();
+
+// Screen Wake Lock API (keeps mobile display awake)
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e) {
+      console.warn('Wake Lock request failed:', e);
+    }
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !wakeLock) {
+    requestWakeLock();
+  }
+});
+
+// Gesture & Zoom Engine
+let scale = 1.0;
+let panX = 0;
+let panY = 0;
+let initialDistance = 0;
+let initialScale = 1.0;
+let isPanning = false;
+let startPanX = 0;
+let startPanY = 0;
+let lastTap = 0;
+
+function updateTransform() {
+  videoContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  zoomText.textContent = `${scale.toFixed(1)}x`;
+}
+
+function resetZoom() {
+  scale = 1.0;
+  panX = 0;
+  panY = 0;
+  updateTransform();
+}
+
+document.getElementById('resetZoomBtn').onclick = (e) => {
+  e.stopPropagation();
+  resetZoom();
+  showHint('Zoom reset');
+};
+
+// Fit modes: contain -> cover -> fill
+const fitModes = ['contain', 'cover', 'fill'];
+const fitLabels = { contain: 'Fit to screen', cover: 'Fill screen', fill: 'Stretch' };
+let fitModeIndex = 0;
+document.getElementById('fitModeBtn').onclick = (e) => {
+  e.stopPropagation();
+  fitModeIndex = (fitModeIndex + 1) % fitModes.length;
+  const mode = fitModes[fitModeIndex];
+  video.style.objectFit = mode;
+  showHint(fitLabels[mode]);
+};
+
+// Fullscreen API
+document.getElementById('fullscreenBtn').onclick = (e) => {
+  e.stopPropagation();
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+};
+
+document.addEventListener('fullscreenchange', () => {
+  document.body.classList.toggle('is-fullscreen', !!document.fullscreenElement);
+});
+
+// Touch Gestures (Pinch-to-zoom & Pan)
+const viewport = document.getElementById('viewport');
+
+viewport.addEventListener('touchstart', (e) => {
+  resetUiTimeout();
+
+  if (e.touches.length === 2) {
+    // Pinch start
+    initialDistance = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    initialScale = scale;
+  } else if (e.touches.length === 1) {
+    // Drag/Pan start or double-tap check
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      // Double tap detected: toggle 1.0x <-> 2.5x
+      if (scale > 1.2) {
+        resetZoom();
+      } else {
+        scale = 2.5;
+        panX = (window.innerWidth / 2 - e.touches[0].clientX) * 1.5;
+        panY = (window.innerHeight / 2 - e.touches[0].clientY) * 1.5;
+        updateTransform();
+      }
+      lastTap = 0;
+      return;
+    }
+    lastTap = now;
+
+    if (scale > 1.0) {
+      isPanning = true;
+      startPanX = e.touches[0].clientX - panX;
+      startPanY = e.touches[0].clientY - panY;
+    }
+  }
+}, { passive: true });
+
+viewport.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2) {
+    const currentDistance = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    if (initialDistance > 0) {
+      scale = Math.min(Math.max(initialScale * (currentDistance / initialDistance), 1.0), 5.0);
+      updateTransform();
+    }
+  } else if (e.touches.length === 1 && isPanning && scale > 1.0) {
+    panX = e.touches[0].clientX - startPanX;
+    panY = e.touches[0].clientY - startPanY;
+    updateTransform();
+  }
+}, { passive: true });
+
+viewport.addEventListener('touchend', () => {
+  isPanning = false;
+  if (scale <= 1.0) resetZoom();
+});
+
+// Audio Unmute Handler
+unmutePill.onclick = () => {
+  video.muted = false;
+  video.play().then(() => {
+    unmutePill.style.display = 'none';
+  }).catch(() => {});
+};
+
+// WebRTC Signaling & Connection
+function connectSignaling() {
+  const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    statusDot.className = 'status-dot';
+    statusText.textContent = 'Connected';
+    if (currentChannelId) {
+      joinStreamChannel(currentChannelId);
+    }
+  };
+
+  ws.onclose = () => {
+    statusDot.className = 'status-dot error';
+    statusText.textContent = 'Offline';
+    centerState.classList.remove('hidden');
+    centerTitle.textContent = 'Reconnecting…';
+    centerSubtitle.textContent = 'Re-establishing the relay connection';
+    setTimeout(connectSignaling, 2000);
+  };
+
+  ws.onmessage = async (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === 'welcome') {
+        clientId = msg.clientId;
+        populateStreamList(msg.streams);
+        // Auto join target channel
+        if (targetChannel) {
+          joinStreamChannel(targetChannel);
+        }
+      } else if (msg.type === 'stream-list') {
+        populateStreamList(msg.streams);
+      } else if (msg.type === 'stream-ended') {
+        if (msg.channelId === currentChannelId) {
+          handleStreamEnded();
+        }
+      } else if (msg.type === 'offer') {
+        if (msg.channelId === currentChannelId) {
+          await handleOffer(msg.fromClientId, msg.sdp);
+        }
+      } else if (msg.type === 'candidate') {
+        if (msg.channelId === currentChannelId) {
+          await handleCandidate(msg.candidate);
+        }
+      }
+    } catch (e) {
+      console.error('Signaling parse error:', e);
+    }
+  };
+}
+
+function populateStreamList(streams) {
+  channelSelect.innerHTML = '';
+
+  if (!streams || streams.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No active streams';
+    opt.disabled = true;
+    opt.selected = true;
+    channelSelect.appendChild(opt);
+    return;
+  }
+
+  let found = false;
+  streams.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.channelId;
+    opt.textContent = `${s.label} · CH-${s.channelId}`;
+    if (s.channelId === currentChannelId) {
+      opt.selected = true;
+      found = true;
+    }
+    channelSelect.appendChild(opt);
+  });
+
+  if (!found && streams.length > 0) {
+    // Pick first available or match target
+    const match = streams.find(s => s.channelId === targetChannel) || streams[0];
+    channelSelect.value = match.channelId;
+    joinStreamChannel(match.channelId);
+  }
+}
+
+channelSelect.onchange = () => {
+  const selected = channelSelect.value;
+  if (selected && selected !== currentChannelId) {
+    joinStreamChannel(selected);
+  }
+};
+
+function joinStreamChannel(channelId) {
+  if (currentChannelId && currentChannelId !== channelId) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'leave-channel', channelId: currentChannelId }));
+    }
+  }
+
+  currentChannelId = channelId;
+  targetChannel = channelId;
+  localStorage.setItem('last_channel', channelId);
+
+  // Update URL without reload
+  const url = new URL(window.location);
+  url.searchParams.set('channel', channelId);
+  window.history.replaceState({}, '', url);
+
+  // Reset WebRTC peer
+  if (pc) {
+    try { pc.close(); } catch (e) {}
+    pc = null;
+  }
+  remoteSet = false;
+  pendingCandidates = [];
+
+  centerState.classList.remove('hidden');
+  centerTitle.textContent = `Joining channel ${channelId}…`;
+  centerSubtitle.textContent = 'Waiting for the sender’s video stream';
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'join-channel', channelId }));
+  }
+}
+
+async function handleOffer(senderId, sdp) {
+  currentSenderId = senderId;
+
+  if (pc) {
+    try { pc.close(); } catch (e) {}
+  }
+
+  pc = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+
+  remoteSet = false;
+  pendingCandidates = [];
+
+  pc.ontrack = (event) => {
+    video.srcObject = event.streams[0];
+    video.muted = true; // start muted for mobile autoplay
+    video.play().then(() => {
+      centerState.classList.add('hidden');
+      statusDot.className = 'status-dot connected';
+      statusText.textContent = 'Live';
+      requestWakeLock();
+
+      // Check if stream has audio track
+      const audioTracks = event.streams[0].getAudioTracks();
+      if (audioTracks && audioTracks.length > 0) {
+        unmutePill.style.display = 'flex';
+      }
+    }).catch(err => {
+      console.warn('Autoplay failed:', err);
+    });
+  };
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'candidate',
+        targetClientId: currentSenderId,
+        channelId: currentChannelId,
+        candidate: event.candidate
+      }));
+    }
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+      statusDot.className = 'status-dot connected';
+      statusText.textContent = 'Live';
+    } else if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+      statusDot.className = 'status-dot error';
+      statusText.textContent = 'Interrupted';
+    }
+  };
+
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+    remoteSet = true;
+
+    for (const c of pendingCandidates) {
+      try { await pc.addIceCandidate(c); } catch (e) {}
+    }
+    pendingCandidates = [];
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'answer',
+        targetClientId: currentSenderId,
+        channelId: currentChannelId,
+        sdp: answer.sdp
+      }));
+    }
+  } catch (err) {
+    console.error('Error handling WebRTC offer:', err);
+  }
+}
+
+async function handleCandidate(candidate) {
+  if (remoteSet && pc) {
+    try { await pc.addIceCandidate(candidate); } catch (e) {}
+  } else {
+    pendingCandidates.push(candidate);
+  }
+}
+
+function handleStreamEnded() {
+  statusDot.className = 'status-dot';
+  statusText.textContent = 'Ended';
+  centerState.classList.remove('hidden');
+  centerTitle.textContent = 'Screen share ended';
+  centerSubtitle.textContent = 'Waiting for the sender to resume sharing…';
+  unmutePill.style.display = 'none';
+  video.srcObject = null;
+}
+
+connectSignaling();
+
+// Register PWA Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
