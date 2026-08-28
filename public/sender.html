@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)">
+<title>Sender Studio — TOTS Screen</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  /* Resolve the theme before first paint to avoid a flash of the wrong palette. */
+  (function () {
+    try {
+      var stored = localStorage.getItem('theme');
+      var theme = (stored === 'light' || stored === 'dark')
+        ? stored
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  })();
+</script>
+<style>
+  /* ===== Design tokens ===== */
+  :root {
+    color-scheme: light;
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --surface-hover: #f1f5f9;
+    --glass: rgba(255, 255, 255, 0.72);
+    --stage: #0f172a;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text: #0f172a;
+    --text-2: #475569;
+    --text-3: #94a3b8;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: rgba(37, 99, 235, 0.07);
+    --accent-ring: rgba(37, 99, 235, 0.16);
+    --on-accent: #ffffff;
+    --success: #059669;
+    --success-soft: rgba(5, 150, 105, 0.09);
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --danger-soft: rgba(220, 38, 38, 0.08);
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.03), 0 12px 28px -12px rgba(15, 23, 42, 0.14);
+    --shadow-lg: 0 32px 64px -24px rgba(15, 23, 42, 0.22);
+    --r-xs: 8px;
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 18px;
+    --r-xl: 24px;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --nav-h: 64px;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #090d16;
+    --surface: #0f172a;
+    --surface-2: #131d31;
+    --surface-hover: #17223a;
+    --glass: rgba(9, 13, 22, 0.72);
+    --stage: #05080f;
+    --border: #1e293b;
+    --border-strong: #334155;
+    --text: #f8fafc;
+    --text-2: #94a3b8;
+    --text-3: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-soft: rgba(59, 130, 246, 0.12);
+    --accent-ring: rgba(59, 130, 246, 0.24);
+    --success: #10b981;
+    --success-soft: rgba(16, 185, 129, 0.12);
+    --danger: #ef4444;
+    --danger-hover: #f87171;
+    --danger-soft: rgba(239, 68, 68, 0.12);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+    --shadow-md: 0 12px 28px -14px rgba(0, 0, 0, 0.8);
+    --shadow-lg: 0 32px 64px -24px rgba(0, 0, 0, 0.9);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    transition: background-color 0.35s var(--ease), color 0.35s var(--ease);
+  }
+
+  svg { display: block; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--nav-h);
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-inner {
+    max-width: 1240px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    text-decoration: none;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .brand-logo {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--text);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .brand-logo svg { width: 17px; height: 17px; }
+
+  .brand-text h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .brand-text p {
+    font-size: 11.5px;
+    color: var(--text-3);
+    line-height: 1.3;
+  }
+
+  .topbar-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+
+  .ping {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-3);
+    flex-shrink: 0;
+  }
+
+  .ping.connected { background: var(--success); }
+
+  .ping.connected::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid var(--success);
+    opacity: 0;
+    animation: ping 2.4s var(--ease) infinite;
+  }
+
+  @keyframes ping {
+    0% { transform: scale(0.6); opacity: 0.7; }
+    70%, 100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  .theme-toggle {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .theme-toggle:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-hover); }
+
+  .theme-toggle svg {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    transition: opacity 0.32s var(--ease), transform 0.45s var(--ease);
+  }
+
+  .theme-toggle .ic-sun { opacity: 0; transform: rotate(-70deg) scale(0.5); }
+  .theme-toggle .ic-moon { opacity: 1; transform: rotate(0) scale(1); }
+  [data-theme="dark"] .theme-toggle .ic-sun { opacity: 1; transform: rotate(0) scale(1); }
+  [data-theme="dark"] .theme-toggle .ic-moon { opacity: 0; transform: rotate(70deg) scale(0.5); }
+
+  /* ===== Buttons ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 0.18s var(--ease), background-color 0.2s var(--ease),
+                border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), color 0.2s var(--ease);
+  }
+
+  .btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16), 0 6px 16px -8px var(--accent-ring);
+  }
+
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-secondary:hover { border-color: var(--border-strong); background: var(--surface-hover); }
+
+  .btn-danger {
+    background: var(--danger-soft);
+    border-color: transparent;
+    color: var(--danger);
+  }
+
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+
+  .btn-danger.confirming {
+    background: var(--danger);
+    color: #fff;
+    animation: nudge 0.32s var(--ease);
+  }
+
+  @keyframes nudge {
+    0%, 100% { transform: translateX(0); }
+    30% { transform: translateX(-3px); }
+    70% { transform: translateX(3px); }
+  }
+
+  .btn-sm { height: 30px; padding: 0 11px; font-size: 12.5px; border-radius: var(--r-xs); }
+  .btn-sm svg { width: 13px; height: 13px; }
+
+  .btn-icon { width: 30px; height: 30px; padding: 0; }
+
+  .btn:active { transform: translateY(0); }
+
+  /* ===== Page ===== */
+  .page {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 32px 24px 72px;
+  }
+
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 26px;
+  }
+
+  .page-head h2 {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+  }
+
+  .page-head p {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+
+  .streams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* ===== Stream card ===== */
+  .stream-card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+  }
+
+  .stream-card:hover { box-shadow: var(--shadow-md); }
+
+  .stream-card.active {
+    border-color: var(--accent-ring);
+    box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-soft);
+  }
+
+  .stream-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stream-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .stream-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--text-2);
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+
+  .stream-name-input {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    background: transparent;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.018em;
+    color: var(--text);
+    transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .stream-name-input:hover { background: var(--surface-hover); }
+
+  .stream-name-input:focus {
+    outline: none;
+    background: var(--surface);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .live-badge {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .stream-card.active .live-badge { display: inline-flex; }
+
+  .live-badge .rec {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: rec 1.8s var(--ease) infinite;
+  }
+
+  @keyframes rec {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+
+  /* ===== Preview stage ===== */
+  .preview-wrapper {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--stage);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .preview-video {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+
+  .preview-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: rgba(148, 163, 184, 0.72);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .preview-placeholder svg { width: 34px; height: 34px; opacity: 0.65; }
+
+  .preview-stats-bar {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+    pointer-events: none;
+  }
+
+  .stream-card.active .preview-stats-bar { opacity: 1; transform: none; }
+
+  .preview-stats-bar span {
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: #f8fafc;
+    letter-spacing: 0.01em;
+  }
+
+  /* ===== Card body ===== */
+  .stream-body {
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .stream-options-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: end;
+  }
+
+  .option-group { min-width: 0; }
+
+  .option-label {
+    display: block;
+    margin-bottom: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .select-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 34px 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+    background-color: var(--surface-2);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 15px;
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .select-input:hover:not(:disabled) { border-color: var(--border-strong); }
+
+  .select-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .select-input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .switch-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 36px;
+  }
+
+  .switch-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .audio-toggle {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-hover);
+    cursor: pointer;
+    transition: background-color 0.22s var(--ease), border-color 0.22s var(--ease);
+  }
+
+  .audio-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.28);
+    transition: transform 0.22s var(--ease);
+  }
+
+  .audio-toggle:checked { background: var(--accent); border-color: var(--accent); }
+  .audio-toggle:checked::after { transform: translateX(16px); }
+  .audio-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+  .audio-toggle:disabled + .switch-label { opacity: 0.5; }
+
+  .share-btn { width: 100%; height: 42px; font-size: 14px; }
+
+  /* ===== Connect box ===== */
+  .connect-box {
+    display: none;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+  }
+
+  .qr-container {
+    width: 116px;
+    height: 116px;
+    flex-shrink: 0;
+    padding: 6px;
+    border-radius: var(--r-xs);
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.2s var(--ease), border-color 0.2s var(--ease);
+  }
+
+  .qr-container:hover { transform: scale(1.02); border-color: var(--border-strong); }
+  .qr-container img, .qr-container svg { width: 100%; height: 100%; display: block; }
+
+  .connect-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .connect-info-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .url-pill {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+    background: var(--surface);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    color: var(--text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .connect-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .viewers-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--success-soft);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--success);
+    white-space: nowrap;
+  }
+
+  .viewers-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .copy-link-btn.copied { color: var(--success); border-color: var(--success-soft); background: var(--success-soft); }
+
+  /* ===== Empty state ===== */
+  .empty-state {
+    grid-column: 1 / -1;
+    padding: 64px 24px;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-xl);
+    text-align: center;
+    color: var(--text-2);
+  }
+
+  .empty-state svg { width: 30px; height: 30px; margin: 0 auto 14px; color: var(--text-3); }
+  .empty-state h3 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .empty-state p { font-size: 13.5px; }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 18px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    box-shadow: var(--shadow-lg);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+    opacity: 0;
+    transform: translate(-50%, 12px);
+    pointer-events: none;
+    transition: opacity 0.28s var(--ease), transform 0.28s var(--ease);
+  }
+
+  .toast svg { width: 15px; height: 15px; color: var(--success); flex-shrink: 0; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 900px) {
+    .streams-grid { grid-template-columns: 1fr; }
+    .brand-text p { display: none; }
+  }
+
+  @media (max-width: 640px) {
+    .page { padding: 24px 16px 64px; }
+    .topbar-inner { padding: 0 16px; }
+    .nav-link-label { display: none; }
+    .btn-nav { width: 34px; padding: 0; }
+    .status-pill { display: none; }
+    .connect-box { flex-direction: column; align-items: center; text-align: center; }
+    .connect-info { width: 100%; }
+    .qr-container { width: 132px; height: 132px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="brand">
+      <span class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M9 21h6"/><path d="M12 17v4"/></svg>
+      </span>
+      <span class="brand-text">
+        <h1>Sender Studio</h1>
+        <p>TOTS Screen</p>
+      </span>
+    </a>
+
+    <div class="topbar-actions">
+      <a href="/" class="btn btn-secondary btn-sm btn-nav" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="nav-link-label">Home</span>
+      </a>
+      <a href="/view" class="btn btn-secondary btn-sm btn-nav" title="Viewer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>
+        <span class="nav-link-label">Viewer</span>
+      </a>
+
+      <span class="status-pill">
+        <span class="ping" id="serverDot"></span>
+        <span id="serverStatus">Connecting…</span>
+      </span>
+
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch color theme" title="Switch color theme">
+        <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+
+      <button class="btn btn-primary" id="addStreamBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span class="nav-link-label">New stream</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h2>Your streams</h2>
+      <p>Each slot shares one screen, window, or tab on its own channel.</p>
+    </div>
+  </div>
+
+  <main class="streams-grid" id="streamsGrid">
+    <!-- Stream cards are created dynamically -->
+  </main>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastText">Copied</span>
+</div>
+
+<script>
+/* ===== Theme engine ===== */
+(function () {
+  const root = document.documentElement;
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function storedTheme() {
+    try {
+      const v = localStorage.getItem('theme');
+      return (v === 'light' || v === 'dark') ? v : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  root.setAttribute('data-theme', storedTheme() || (media.matches ? 'dark' : 'light'));
+
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+
+  const onSchemeChange = (e) => {
+    if (!storedTheme()) root.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+  };
+  if (media.addEventListener) media.addEventListener('change', onSchemeChange);
+  else if (media.addListener) media.addListener(onSchemeChange);
+})();
+
+/* ===== Icon set ===== */
+const ICONS = {
+  play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6" rx="1.2"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+};
+
+/* ===== Signaling and server state ===== */
+let ws = null;
+let clientId = null;
+let serverInfo = { defaultIp: location.hostname, port: location.port || 8080 };
+const streams = new Map(); // channelId -> StreamController
+let channelCounter = 1;
+
+// Fetch LAN IP info from backend
+fetch('/api/info')
+  .then(res => res.json())
+  .then(info => {
+    serverInfo = info;
+    updateAllQrCodes();
+  })
+  .catch(() => {});
+
+// Connect to WebSocket Signaling
+function connectSignaling() {
+  const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    document.getElementById('serverDot').classList.add('connected');
+    document.getElementById('serverStatus').textContent = `${serverInfo.defaultIp}:${serverInfo.port}`;
+
+    // Re-register any active streams if reconnected
+    for (const ctrl of streams.values()) {
+      if (ctrl.isStreaming) {
+        ctrl.registerWithServer();
+      }
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('serverDot').classList.remove('connected');
+    document.getElementById('serverStatus').textContent = 'Reconnecting…';
+    setTimeout(connectSignaling, 2000);
+  };
+
+  ws.onmessage = async (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'welcome') {
+        clientId = msg.clientId;
+      } else if (msg.type === 'viewer-joined') {
+        const ctrl = streams.get(msg.channelId);
+        if (ctrl && ctrl.isStreaming) {
+          ctrl.handleViewerJoined(msg.viewerId);
+        }
+      } else if (msg.type === 'viewer-left') {
+        const ctrl = streams.get(msg.channelId);
+        if (ctrl) {
+          ctrl.handleViewerLeft(msg.viewerId);
+        }
+      } else if (msg.type === 'answer') {
+        const ctrl = streams.get(msg.channelId);
+        if (ctrl) {
+          ctrl.handleViewerAnswer(msg.fromClientId, msg.sdp);
+        }
+      } else if (msg.type === 'candidate') {
+        const ctrl = streams.get(msg.channelId);
+        if (ctrl) {
+          ctrl.handleViewerCandidate(msg.fromClientId, msg.candidate);
+        }
+      }
+    } catch (e) {
+      console.error('Signaling message error:', e);
+    }
+  };
+}
+
+connectSignaling();
+
+// Toast helper
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastText').textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// Update QR codes whenever server IP or channels update
+function updateAllQrCodes() {
+  for (const ctrl of streams.values()) {
+    ctrl.updateQrCode();
+  }
+}
+
+// Show the placeholder when no slots are left
+function syncEmptyState() {
+  const grid = document.getElementById('streamsGrid');
+  const existing = grid.querySelector('.empty-state');
+
+  if (streams.size === 0 && !existing) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <h3>No stream slots</h3>
+      <p>Create a slot with “New stream” to start sharing.</p>
+    `;
+    grid.appendChild(empty);
+  } else if (streams.size > 0 && existing) {
+    existing.remove();
+  }
+}
+
+/**
+ * StreamController manages one screen-share stream slot and all connected viewers
+ */
+class StreamController {
+  constructor(channelId, initialName) {
+    this.channelId = channelId;
+    this.name = initialName || `Stream ${channelId}`;
+    this.mediaStream = null;
+    this.isStreaming = false;
+    this.viewers = new Map(); // viewerId -> { pc, remoteSet, pendingCandidates: [] }
+    this.confirmTimer = null;
+
+    this.createElement();
+    this.attachEvents();
+  }
+
+  getViewerUrl() {
+    const host = serverInfo.defaultIp || location.hostname;
+    const port = serverInfo.port || location.port || 8080;
+    return `http://${host}:${port}/view?channel=${encodeURIComponent(this.channelId)}`;
+  }
+
+  createElement() {
+    const card = document.createElement('div');
+    card.className = 'stream-card';
+    card.id = `card_${this.channelId}`;
+    card.innerHTML = `
+      <div class="stream-header">
+        <div class="stream-title-group">
+          <span class="stream-badge">CH-${this.channelId}</span>
+          <input type="text" class="stream-name-input" value="${this.name}" title="Rename this stream" aria-label="Stream name">
+        </div>
+        <span class="live-badge"><span class="rec"></span>Live</span>
+        <button class="btn btn-secondary btn-sm btn-icon close-card-btn" type="button" title="Remove stream slot" aria-label="Remove stream slot">
+          ${ICONS.close}
+        </button>
+      </div>
+
+      <div class="preview-wrapper">
+        <video class="preview-video" autoplay muted playsinline></video>
+        <div class="preview-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+          </svg>
+          <span>Nothing shared yet</span>
+        </div>
+        <div class="preview-stats-bar">
+          <span class="res-stat">0x0</span>
+          <span class="fps-stat">0 fps</span>
+          <span class="hint-stat">Detail</span>
+        </div>
+      </div>
+
+      <div class="stream-body">
+        <div class="stream-options-row">
+          <div class="option-group">
+            <label class="option-label" for="quality_${this.channelId}">Capture quality</label>
+            <select class="select-input quality-select" id="quality_${this.channelId}">
+              <option value="detail" selected>Sharp text &amp; code · 30 fps</option>
+              <option value="motion">Smooth motion · 60 fps</option>
+            </select>
+          </div>
+
+          <div class="option-group">
+            <span class="option-label">Audio</span>
+            <div class="switch-row">
+              <input type="checkbox" class="audio-toggle" id="audio_${this.channelId}" aria-label="Include audio">
+              <label class="switch-label" for="audio_${this.channelId}">Include</label>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary share-btn" type="button">
+          ${ICONS.play}
+          <span class="btn-label">Share screen or window</span>
+        </button>
+
+        <div class="connect-box">
+          <div class="qr-container" title="Click to enlarge"></div>
+          <div class="connect-info">
+            <div class="connect-info-title">Scan to watch on mobile</div>
+            <div class="url-pill"></div>
+            <div class="connect-actions">
+              <button class="btn btn-secondary btn-sm copy-link-btn" type="button">
+                ${ICONS.copy}
+                <span>Copy link</span>
+              </button>
+              <span class="viewers-badge">
+                <span class="dot"></span>
+                <span class="viewer-count">0 viewers</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('streamsGrid').appendChild(card);
+    this.el = card;
+    this.previewVideo = card.querySelector('.preview-video');
+    this.previewPlaceholder = card.querySelector('.preview-placeholder');
+    this.shareBtn = card.querySelector('.share-btn');
+    this.closeBtn = card.querySelector('.close-card-btn');
+    this.connectBox = card.querySelector('.connect-box');
+    this.qrContainer = card.querySelector('.qr-container');
+    this.urlPill = card.querySelector('.url-pill');
+    this.viewerCountEl = card.querySelector('.viewer-count');
+    this.nameInput = card.querySelector('.stream-name-input');
+    this.qualitySelect = card.querySelector('.quality-select');
+    this.audioToggle = card.querySelector('.audio-toggle');
+    this.statsBar = card.querySelector('.preview-stats-bar');
+    this.copyLinkBtn = card.querySelector('.copy-link-btn');
+
+    this.updateQrCode();
+  }
+
+  /** Renders the share button for one of: idle | live | confirm */
+  setShareButton(state) {
+    if (state === 'idle') {
+      this.shareBtn.className = 'btn btn-primary share-btn';
+      this.shareBtn.innerHTML = `${ICONS.play}<span class="btn-label">Share screen or window</span>`;
+    } else if (state === 'live') {
+      this.shareBtn.className = 'btn btn-danger share-btn';
+      this.shareBtn.innerHTML = `${ICONS.stop}<span class="btn-label">Stop sharing</span>`;
+    } else {
+      this.shareBtn.className = 'btn btn-danger share-btn confirming';
+      this.shareBtn.innerHTML = `${ICONS.alert}<span class="btn-label">Click again to stop</span>`;
+    }
+  }
+
+  clearConfirm() {
+    clearTimeout(this.confirmTimer);
+    this.confirmTimer = null;
+    this.closeBtn.classList.remove('btn-danger', 'confirming');
+    this.closeBtn.classList.add('btn-secondary');
+    this.closeBtn.title = 'Remove stream slot';
+    if (this.isStreaming && this.shareBtn.classList.contains('confirming')) {
+      this.setShareButton('live');
+    }
+  }
+
+  attachEvents() {
+    this.nameInput.oninput = () => {
+      this.name = this.nameInput.value || `Stream ${this.channelId}`;
+      if (this.isStreaming) this.registerWithServer();
+    };
+
+    // Stopping a live stream is destructive, so it asks for a second click.
+    this.shareBtn.onclick = () => {
+      if (!this.isStreaming) {
+        this.clearConfirm();
+        this.startSharing();
+        return;
+      }
+
+      if (this.shareBtn.classList.contains('confirming')) {
+        this.clearConfirm();
+        this.stopSharing();
+        return;
+      }
+
+      this.clearConfirm();
+      this.setShareButton('confirm');
+      this.confirmTimer = setTimeout(() => this.clearConfirm(), 3500);
+    };
+
+    this.closeBtn.onclick = () => {
+      // A live slot warns once before it is torn down.
+      if (this.isStreaming && !this.closeBtn.classList.contains('confirming')) {
+        this.clearConfirm();
+        this.closeBtn.classList.remove('btn-secondary');
+        this.closeBtn.classList.add('btn-danger', 'confirming');
+        this.closeBtn.title = 'Click again to remove this live stream';
+        showToast('This stream is live — click again to remove it');
+        this.confirmTimer = setTimeout(() => this.clearConfirm(), 3500);
+        return;
+      }
+
+      clearTimeout(this.confirmTimer);
+      if (this.isStreaming) this.stopSharing();
+      this.el.remove();
+      streams.delete(this.channelId);
+      syncEmptyState();
+    };
+
+    this.copyLinkBtn.onclick = () => {
+      const url = this.getViewerUrl();
+      const done = () => {
+        this.copyLinkBtn.classList.add('copied');
+        this.copyLinkBtn.innerHTML = `${ICONS.check}<span>Copied</span>`;
+        clearTimeout(this.copyTimer);
+        this.copyTimer = setTimeout(() => {
+          this.copyLinkBtn.classList.remove('copied');
+          this.copyLinkBtn.innerHTML = `${ICONS.copy}<span>Copy link</span>`;
+        }, 1800);
+        showToast('Viewer link copied');
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(() => showToast('Copy failed — select the link manually'));
+      } else {
+        showToast('Copy failed — select the link manually');
+      }
+    };
+  }
+
+  updateQrCode() {
+    const url = this.getViewerUrl();
+    this.urlPill.textContent = url;
+    this.urlPill.title = url;
+    const qrSrc = `/api/qr?text=${encodeURIComponent(url)}`;
+    this.qrContainer.innerHTML = `<img src="${qrSrc}" alt="Scan to open this stream">`;
+    this.qrContainer.onclick = () => {
+      window.open(qrSrc, '_blank', 'width=400,height=400');
+    };
+  }
+
+  registerWithServer() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'register-stream',
+        channelId: this.channelId,
+        label: this.name
+      }));
+    }
+  }
+
+  async startSharing() {
+    const quality = this.qualitySelect.value;
+    const includeAudio = this.audioToggle.checked;
+
+    const displayMediaOptions = {
+      video: {
+        cursor: 'always',
+        frameRate: quality === 'motion' ? 60 : 30
+      },
+      audio: includeAudio
+    };
+
+    try {
+      this.mediaStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+      this.isStreaming = true;
+
+      // Optimize track content hint
+      const videoTrack = this.mediaStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.contentHint = quality; // 'detail' or 'motion'
+        videoTrack.onended = () => this.stopSharing();
+
+        const settings = videoTrack.getSettings();
+        this.statsBar.querySelector('.res-stat').textContent = `${settings.width || 1920}x${settings.height || 1080}`;
+        this.statsBar.querySelector('.fps-stat').textContent = `${Math.round(settings.frameRate || (quality === 'motion' ? 60 : 30))} fps`;
+        this.statsBar.querySelector('.hint-stat').textContent = quality === 'detail' ? 'Sharp text' : 'Smooth motion';
+      }
+
+      this.previewVideo.srcObject = this.mediaStream;
+      this.previewVideo.style.display = 'block';
+      this.previewPlaceholder.style.display = 'none';
+      this.el.classList.add('active');
+
+      this.setShareButton('live');
+      this.qualitySelect.disabled = true;
+      this.audioToggle.disabled = true;
+
+      this.connectBox.style.display = 'flex';
+      this.updateQrCode();
+      this.registerWithServer();
+
+    } catch (err) {
+      console.warn('Screen share cancelled or failed:', err);
+    }
+  }
+
+  stopSharing() {
+    this.clearConfirm();
+
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(track => track.stop());
+      this.mediaStream = null;
+    }
+
+    // Close all viewer peer connections
+    for (const viewerObj of this.viewers.values()) {
+      try { viewerObj.pc.close(); } catch (e) {}
+    }
+    this.viewers.clear();
+    this.updateViewerCount();
+
+    this.isStreaming = false;
+    this.previewVideo.srcObject = null;
+    this.previewVideo.style.display = 'none';
+    this.previewPlaceholder.style.display = 'flex';
+    this.el.classList.remove('active');
+
+    this.setShareButton('idle');
+    this.qualitySelect.disabled = false;
+    this.audioToggle.disabled = false;
+    this.connectBox.style.display = 'none';
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'unregister-stream',
+        channelId: this.channelId
+      }));
+    }
+  }
+
+  updateViewerCount() {
+    const count = this.viewers.size;
+    this.viewerCountEl.textContent = `${count} viewer${count === 1 ? '' : 's'}`;
+  }
+
+  async handleViewerJoined(viewerId) {
+    if (!this.isStreaming || !this.mediaStream) return;
+
+    // Create a new RTCPeerConnection for this viewer
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    const viewerObj = { pc, remoteSet: false, pendingCandidates: [] };
+    this.viewers.set(viewerId, viewerObj);
+    this.updateViewerCount();
+
+    // Add all active stream tracks
+    this.mediaStream.getTracks().forEach(track => {
+      pc.addTrack(track, this.mediaStream);
+    });
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'candidate',
+          targetClientId: viewerId,
+          channelId: this.channelId,
+          candidate: e.candidate
+        }));
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        this.handleViewerLeft(viewerId);
+      }
+    };
+
+    // Create WebRTC Offer
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'offer',
+          targetClientId: viewerId,
+          channelId: this.channelId,
+          sdp: offer.sdp
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to create offer for viewer:', viewerId, e);
+    }
+  }
+
+  async handleViewerAnswer(viewerId, sdp) {
+    const viewerObj = this.viewers.get(viewerId);
+    if (!viewerObj) return;
+
+    try {
+      await viewerObj.pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp }));
+      viewerObj.remoteSet = true;
+      for (const candidate of viewerObj.pendingCandidates) {
+        try { await viewerObj.pc.addIceCandidate(candidate); } catch (e) {}
+      }
+      viewerObj.pendingCandidates = [];
+    } catch (e) {
+      console.error('Error setting answer for viewer:', viewerId, e);
+    }
+  }
+
+  async handleViewerCandidate(viewerId, candidate) {
+    const viewerObj = this.viewers.get(viewerId);
+    if (!viewerObj) return;
+
+    if (viewerObj.remoteSet) {
+      try { await viewerObj.pc.addIceCandidate(candidate); } catch (e) {}
+    } else {
+      viewerObj.pendingCandidates.push(candidate);
+    }
+  }
+
+  handleViewerLeft(viewerId) {
+    const viewerObj = this.viewers.get(viewerId);
+    if (viewerObj) {
+      try { viewerObj.pc.close(); } catch (e) {}
+      this.viewers.delete(viewerId);
+      this.updateViewerCount();
+    }
+  }
+}
+
+// Add new stream slot helper
+function addStreamSlot(name) {
+  const channelId = String(channelCounter++);
+  const ctrl = new StreamController(channelId, name);
+  streams.set(channelId, ctrl);
+  syncEmptyState();
+  return ctrl;
+}
+
+document.getElementById('addStreamBtn').onclick = () => {
+  addStreamSlot(`Stream ${channelCounter}`);
+};
+
+// Start with one default stream card ready
+addStreamSlot('Primary Screen');
+</script>
+</body>
+</html>
