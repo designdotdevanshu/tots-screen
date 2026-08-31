@@ -1328,6 +1328,36 @@ class StreamController {
       }
     };
 
+    // Prioritize hardware-accelerated H.264 codec for lowest latency encoding
+    try {
+      if (typeof RTCRtpSender.getCapabilities === 'function') {
+        const capabilities = RTCRtpSender.getCapabilities('video');
+        if (capabilities && capabilities.codecs) {
+          const h264Codecs = capabilities.codecs.filter(c => c.mimeType.toLowerCase() === 'video/h264');
+          const otherCodecs = capabilities.codecs.filter(c => c.mimeType.toLowerCase() !== 'video/h264');
+          const sortedCodecs = [...h264Codecs, ...otherCodecs];
+          pc.getTransceivers().forEach(transceiver => {
+            if (transceiver.sender && transceiver.sender.track && transceiver.sender.track.kind === 'video' && transceiver.setCodecPreferences) {
+              try { transceiver.setCodecPreferences(sortedCodecs); } catch (e) {}
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    // Optimize sender video parameters for low latency
+    try {
+      pc.getSenders().forEach(sender => {
+        if (sender.track && sender.track.kind === 'video') {
+          const params = sender.getParameters();
+          if (params) {
+            params.degradePreference = 'maintain-framerate';
+            sender.setParameters(params).catch(() => {});
+          }
+        }
+      });
+    } catch (e) {}
+
     // Create WebRTC Offer
     try {
       const offer = await pc.createOffer();

@@ -869,6 +869,18 @@ async function handleOffer(senderId, sdp) {
   pendingCandidates = [];
 
   pc.ontrack = (event) => {
+    // Ultra-low latency playout hints: eliminate browser jitter buffer
+    if (event.receiver) {
+      try {
+        if ('playoutDelayHint' in event.receiver) {
+          event.receiver.playoutDelayHint = 0;
+        }
+        if ('jitterBufferTarget' in event.receiver) {
+          event.receiver.jitterBufferTarget = 0;
+        }
+      } catch (e) {}
+    }
+
     video.srcObject = event.streams[0];
     video.muted = true; // start muted for mobile autoplay
     video.play().then(() => {
